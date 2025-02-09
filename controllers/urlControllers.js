@@ -1,6 +1,7 @@
 const Url = require("../models/urlModel");
 const { nanoid } = require("nanoid");
 const validUrl = require("valid-url");
+const {isMaliciousUrl} = require("../util/util");
 
 // Create Short URL
 exports.createShortUrl = async (req, res) => {
@@ -8,6 +9,9 @@ exports.createShortUrl = async (req, res) => {
   if (!url) return res.status(400).json({ error: "URL is required" });
   if (!validUrl.isUri(url)) {
     return res.status(400).json({ error: 'Invalid URL format' });
+  }
+  if (await isMaliciousUrl(url)) {
+    return res.status(400).json({ error: 'Malicious URL detected' });
   }
 
   try {

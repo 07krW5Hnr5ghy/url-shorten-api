@@ -2,13 +2,6 @@ const Url = require("../models/urlModel");
 const { nanoid } = require("nanoid");
 const validUrl = require("valid-url");
 const {isMaliciousUrl} = require("../util/util");
-const rateLimit = require('express-rate-limit');
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' },
-});
 
 // Create Short URL
 exports.createShortUrl = async (req, res) => {
@@ -20,7 +13,7 @@ exports.createShortUrl = async (req, res) => {
   if (await isMaliciousUrl(url)) {
     return res.status(400).json({ error: 'Malicious URL detected' });
   }
-
+ 
   try {
     const shortCode = nanoid(6);
     const existing = await ShortUrl.findOne({ originalUrl: url });
@@ -46,6 +39,12 @@ exports.getOriginalUrl = async (req, res) => {
     if (!urlData) return res.status(404).json({ error: "URL not found" });
 
     urlData.accessCount += 1;
+    urlData.accessLogs.push({
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      timestamp: new Date(),
+    });
+
     await urlData.save();
 
     res.redirect(urlData.originalUrl);
@@ -96,7 +95,10 @@ exports.getUrlStats = async (req, res) => {
 
     if (!urlData) return res.status(404).json({ error: "URL not found" });
 
-    res.json(urlData);
+    res.json({
+      accessCount:urlData.accessCount,
+      accessLogs:urlData.accessLogs,
+    });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

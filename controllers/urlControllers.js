@@ -1,13 +1,23 @@
 const Url = require("../models/urlModel");
 const { nanoid } = require("nanoid");
+const validUrl = require("valid-url");
 
 // Create Short URL
 exports.createShortUrl = async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "URL is required" });
+  if (!validUrl.isUri(url)) {
+    return res.status(400).json({ error: 'Invalid URL format' });
+  }
 
   try {
     const shortCode = nanoid(6);
+    const existing = await ShortUrl.findOne({ originalUrl: url });
+
+    if (existing) {
+      return res.status(200).json(existing);
+    }
+
     const newUrl = new Url({ originalUrl: url, shortCode });
     await newUrl.save();
     res.status(201).json(newUrl);

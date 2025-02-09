@@ -2,6 +2,13 @@ const Url = require("../models/urlModel");
 const { nanoid } = require("nanoid");
 const validUrl = require("valid-url");
 const {isMaliciousUrl} = require("../util/util");
+const rateLimit = require('express-rate-limit');
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
 
 // Create Short URL
 exports.createShortUrl = async (req, res) => {

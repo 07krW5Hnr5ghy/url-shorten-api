@@ -38,8 +38,29 @@ async function isMaliciousUrl(url){
     }
 }
 
+async function getGeoData(ip) {
+    try {
+        const response = await fetch(`https://ip-api.com/json/${ip}`);
+        const data = await response.json();
+
+        if (data.status === 'fail') {
+            return { country: 'Unknown', city: 'Unknown', isp: 'Unknown' };
+        }
+
+        return {
+            country: data.country || 'Unknown',
+            city: data.city || 'Unknown',
+            isp: data.isp || 'Unknown'
+        };
+    } catch (error) {
+        console.error('Error fetching geolocation:', error);
+        return { country: 'Unknown', city: 'Unknown', isp: 'Unknown' };
+    }
+}
+
 
 module.exports = {
     isMaliciousUrl,
-    limiter
+    limiter,
+    getGeoData
 }

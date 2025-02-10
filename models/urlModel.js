@@ -8,10 +8,13 @@ const urlSchema = new mongoose.Schema({
   accessCount: { type: Number, default: 0 },
   accessLogs:[
     {
-      ip:String,
-      userAgent:String,
-      timeStamp:{type:Date,default:Date.now}
-    }
+      ip: String,
+      userAgent: String,
+      timestamp: { type: Date, default: Date.now },
+      country: String,
+      city: String,
+      isp: String
+    },
   ]
 });
 

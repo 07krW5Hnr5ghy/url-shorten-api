@@ -1,7 +1,7 @@
 const Url = require("../models/urlModel");
 const { nanoid } = require("nanoid");
 const validUrl = require("valid-url");
-const {isMaliciousUrl} = require("../util/util");
+const {isMaliciousUrl,getGeoData} = require("../util/util");
 
 // Create Short URL
 exports.createShortUrl = async (req, res) => {
@@ -16,7 +16,7 @@ exports.createShortUrl = async (req, res) => {
  
   try {
     const shortCode = nanoid(6);
-    const existing = await ShortUrl.findOne({ originalUrl: url });
+    const existing = await Url.findOne({ originalUrl: url });
 
     if (existing) {
       return res.status(200).json(existing);
@@ -26,6 +26,7 @@ exports.createShortUrl = async (req, res) => {
     await newUrl.save();
     res.status(201).json(newUrl);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -36,13 +37,20 @@ exports.getOriginalUrl = async (req, res) => {
     const { shortCode } = req.params;
     const urlData = await Url.findOne({ shortCode });
 
-    if (!urlData) return res.status(404).json({ error: "URL not found" });
+    if (!urlData) return res.status(404).json({ error: "short URL not found" });
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    const geoData = await getGeoData(ip);
 
     urlData.accessCount += 1;
     urlData.accessLogs.push({
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      ip,
+      userAgent,
       timestamp: new Date(),
+      country:geoData.country,
+      city:geoData.city,
+      isp:geoData.isp
     });
 
     await urlData.save();
@@ -93,10 +101,33 @@ exports.getUrlStats = async (req, res) => {
     const { shortCode } = req.params;
     const urlData = await Url.findOne({ shortCode });
 
-    if (!urlData) return res.status(404).json({ error: "URL not found" });
+    if (!urlData) return res.status(404).json({ error: "short URL not found" });
+
+    // Count visits per country
+    const countryStats = urlData.accessLogs.reduce((acc, log) => {
+      acc[log.country] = (acc[log.country] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Count visits per hour
+    const hourlyStats = urlData.accessLogs.reduce((acc, log) => {
+      const hour = new Date(log.timestamp).getHours();
+      acc[hour] = (acc[hour] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Count visits per day
+    const dailyStats = shortUrl.accessLogs.reduce((acc, log) => {
+      const day = new Date(log.timestamp).toISOString().split('T')[0];
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {});
 
     res.json({
       accessCount:urlData.accessCount,
+      countryStats,
+      hourlyStats,
+      dailyStats,
       accessLogs:urlData.accessLogs,
     });
   } catch (error) {
